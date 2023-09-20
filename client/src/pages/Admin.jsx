@@ -17,7 +17,11 @@ const Admin = () => {
   const [clientName, setClientName] = useState('')
   const [headerAd, setHeaderAd] = useState('')
   const [fullPageAd, setFullPageAd] = useState('')
-  const [showClients, setShowClients] = useState('')
+  const [showClients, setShowClients] = useState(false)
+  const [showAvatars, setShowAvatars] = useState(false)
+  const [avatarsDb, setAvatarsDb] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [avatarUid, setAvatarUid] = useState('')
   const [showDeleteWarning, setShowDeleteWarning] = useState(false)
   const [selectedForRemoval, setSelectedForRemoval] = useState('')
   const [showSuccessAlert, setshowSuccessAlert] = useState(false)
@@ -31,7 +35,23 @@ const Admin = () => {
   //Clients
   useEffect(() => {
     fetchClients()
+    fetchAvatars()
   }, [])
+
+  function fetchAvatars() {
+    get(ref(database, `avatars/`))
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          setAvatarsDb(Object.values(snapshot.val()))
+          console.log(Object.values(snapshot.val()))
+        } else {
+          console.log('No avatars data available')
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+  }
 
   function fetchClients() {
     get(ref(database, `clients/`))
@@ -40,7 +60,7 @@ const Admin = () => {
           setClientsDb(Object.values(snapshot.val()))
           console.log(Object.values(snapshot.val()))
         } else {
-          console.log('No data available')
+          console.log('No clients data available')
         }
       })
       .catch((error) => {
@@ -151,10 +171,41 @@ const Admin = () => {
       console.error('Failed to download:', error)
     }
   }
+  //Avatars
+  function handleShowAvatars() {
+    fetchAvatars()
+    setShowAvatars((state) => !state)
+  }
+  function uploadAvatar() {
+    if (avatarUrl !== '' && avatarUid !== '') {
+      set(ref(database, 'avatars/' + avatarUid), {
+        url: avatarUrl,
+        uid: avatarUid,
+      })
+      //triggerSuccessAlert(clientId)
+      setAvatarUrl('')
+      setAvatarUid('')
+      console.log('Avatar Uploaded!')
+      fetchAvatars()
+    }
+  }
+
+  function removeAvatar(e, avatar) {
+    console.log(avatar)
+    if (avatar !== '') {
+      remove(ref(database, 'avatars/' + avatar))
+    }
+    //setSelectedForRemoval('')
+    console.log('Avatar Deleted!')
+    //setShowDeleteWarning(false)
+    fetchAvatars()
+  }
 
   return (
     <div>
-      <Typography variant="h1">Admin Panel</Typography>
+      <Typography variant="h1" sx={{ m: 2 }}>
+        Admin Panel
+      </Typography>
       {showDeleteWarning ? (
         <Alert
           severity="warning"
@@ -176,40 +227,44 @@ const Admin = () => {
       ) : (
         ''
       )}
-      <Card>
+      <Card sx={{ m: 2 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
             Client List
           </Typography>
           <Button onClick={handleShowClients}>Show Current Clients</Button>
           {showClients
-            ? clientsDb?.map((client) => (
-                <Card sx={{ width: 'fit-content' }}>
-                  <CardContent>
-                    <Typography variant="overline">Id</Typography>
-                    <Typography variant="subtitle2">{client.id}</Typography>
-                    <Typography variant="overline">Name</Typography>
-                    <Typography variant="subtitle2">{client.name}</Typography>
-                    <Typography variant="overline">Header</Typography>
-                    <Typography variant="subtitle2">{client.header}</Typography>
-                    <Typography variant="overline">FullPage</Typography>
-                    <Typography variant="subtitle2" gutterBottom>
-                      {client.fullPage}
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={(e) => triggerDeleteWArning(e, client.id)}
-                    >
-                      Delete
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
+            ? clientsDb !== ''
+              ? clientsDb.map((client) => (
+                  <Card sx={{ width: 'fit-content' }}>
+                    <CardContent>
+                      <Typography variant="overline">Id</Typography>
+                      <Typography variant="subtitle2">{client.id}</Typography>
+                      <Typography variant="overline">Name</Typography>
+                      <Typography variant="subtitle2">{client.name}</Typography>
+                      <Typography variant="overline">Header</Typography>
+                      <Typography variant="subtitle2">
+                        {client.header}
+                      </Typography>
+                      <Typography variant="overline">FullPage</Typography>
+                      <Typography variant="subtitle2" gutterBottom>
+                        {client.fullPage}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        onClick={(e) => triggerDeleteWArning(e, client.id)}
+                      >
+                        Delete
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              : 'Mo Clients db'
             : ''}
         </CardContent>
       </Card>
-      <Card>
+      <Card sx={{ m: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Update Client List
@@ -249,17 +304,76 @@ const Admin = () => {
           </Button>
         </CardContent>
       </Card>
-      <Card>
+      <Card sx={{ m: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Update Trivia Questions
           </Typography>
           <input type="file" onChange={handleFileChange} />
-          <Button variant="contained" color="success" onClick={uploadTrivia}>
+          <Button
+            variant="contained"
+            color="success"
+            sx={{ m: 2 }}
+            onClick={uploadTrivia}
+          >
             Upload
           </Button>
           <Button variant="contained" onClick={downloadTrivia}>
             Download
+          </Button>
+        </CardContent>
+      </Card>
+      <Card sx={{ m: 2 }}>
+        <CardContent>
+          <Typography variant="h5" gutterBottom>
+            Avatars
+          </Typography>
+          <Button onClick={handleShowAvatars}>Show Current Avatars</Button>
+          {showAvatars
+            ? avatarsDb !== ''
+              ? avatarsDb.map((avatar) => (
+                  <Card sx={{ width: 'fit-content' }}>
+                    <CardContent>
+                      <img src={avatar.url} alt="" width="60rem" />
+                      <Typography variant="subtitle2">{avatar.url}</Typography>
+
+                      <Button
+                        variant="contained"
+                        color="error"
+                        onClick={(e) => removeAvatar(e, avatar.uid)}
+                      >
+                        Delete
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              : 'No Avatars Db'
+            : ''}
+        </CardContent>
+      </Card>
+      <Card sx={{ m: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Add New Avatar
+          </Typography>
+          <TextField
+            id="url"
+            label="Url"
+            variant="outlined"
+            value={avatarUrl}
+            onChange={(e) => setAvatarUrl(e.target.value)}
+          />
+          <TextField
+            id="uid"
+            label="Uid"
+            variant="outlined"
+            value={avatarUid}
+            onChange={(e) => setAvatarUid(e.target.value)}
+          />
+        </CardContent>
+        <CardContent>
+          <Button variant="contained" color="success" onClick={uploadAvatar}>
+            Upload
           </Button>
         </CardContent>
       </Card>

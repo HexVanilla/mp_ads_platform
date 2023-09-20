@@ -17,7 +17,7 @@ import {
 const PlayerLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
 
-  const [avatar, setAvatar] = useState('')
+  const [avatar, setAvatar] = useState(0)
   const [nickname, setNickname] = useState('')
   const [roomName, setRoomName] = useState('')
   const socket = io.connect('http://localhost:3001/')
@@ -38,16 +38,16 @@ const PlayerLanding = () => {
     ackResp()
   }, [])
 
-  const joinRoom = () => {
+  const joinRoom = async () => {
     if (avatar !== '' && nickname !== '' && roomName !== '') {
-      socket.emit('join_room', {
+      const response = await socket.emitWithAck('join_room', {
         playerAvatar: avatar,
         roomName: roomName,
         roomId: roomName,
         playerName: nickname,
         playerId: nickname,
       })
-      sessionStorage.setItem('playerId', nickname)
+      sessionStorage.setItem('playerId', response.id)
       goToLobby()
     }
   }

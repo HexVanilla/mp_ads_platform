@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import io from 'socket.io-client'
+import {
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Divider,
+  Box,
+  Dialog,
+  DialogTitle,
+  Container,
+} from '@mui/material'
 
 const Lobby = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
+  const [avatarImages, setAvatarImages] = useState('')
   const socket = io.connect('http://localhost:3001/')
   const { roomId, businessId } = useParams()
 
@@ -23,13 +36,16 @@ const Lobby = () => {
 
   useEffect(() => {
     socket.emit('onLobby', roomId)
+    console.log(localPlayerId)
   }, [])
 
   useEffect(() => {
-    socket.on('player_joined', (playersRoom) => {
-      console.log('ACK_OnLobby', playersRoom)
-      setRoomInfo(playersRoom)
-      setPlayersList(playersRoom.players)
+    socket.on('player_joined', (data) => {
+      console.log('ACK_OnLobby', data.playersRoom)
+
+      setRoomInfo(data.playersRoom)
+      setPlayersList(data.playersRoom.players)
+      setAvatarImages(Object.values(data.avatars))
     })
   }, [])
 
@@ -139,48 +155,113 @@ const Lobby = () => {
       ) : (
         ''
       )}
-      <h3>Host</h3>
-      {roomInfo !== '' ? (
-        <>
-          <p>{roomInfo.hostName}</p>
-          <p>{roomInfo.ads.name}</p>
-        </>
-      ) : (
-        'loading room info'
-      )}
-      {roomInfo !== '' ? (
-        localPlayerId == roomInfo.hostId ? (
-          <>
-            <p>{selectedGame}</p>
-            <button onClick={selectGame}>pick game</button>
-          </>
-        ) : (
-          ''
-        )
-      ) : (
-        'loading room info'
-      )}
-      <h1>Players</h1>
-      {playersList !== ''
-        ? playersList.map((player) =>
-            player.id === localPlayerId ? (
-              <div>
-                <p>{player.avatar}</p>
-                <p>{player.points}</p>
-                <p>{player.name}</p>
-                <p>{player.status}</p>
-                <button onClick={markAsReady}>Set Ready!</button>
-              </div>
+      <Card sx={{ m: 2 }}>
+        <CardContent>
+          <Typography variant="h6">Host</Typography>
+          {roomInfo !== '' ? (
+            <>
+              <Typography variant="subtitle2">{roomInfo.hostName}</Typography>
+            </>
+          ) : (
+            'loading room info'
+          )}
+          {roomInfo !== '' ? (
+            localPlayerId == roomInfo.hostId ? (
+              <>
+                <p>{selectedGame}</p>
+                <Button variant="contained" onClick={selectGame}>
+                  pick game
+                </Button>
+              </>
             ) : (
-              <div>
-                <p>{player.avatar}</p>
-                <p>{player.points}</p>
-                <p>{player.name}</p>
-                <p>{player.status}</p>
-              </div>
+              ''
             )
-          )
-        : 'loading players'}
+          ) : (
+            'loading room info'
+          )}
+        </CardContent>
+      </Card>
+      <Card sx={{ width: { xs: 320, sm: 600 } }}>
+        <CardContent>
+          <Typography variant="h2">Players</Typography>
+          {playersList !== ''
+            ? playersList.map((player) =>
+                player.id === localPlayerId ? (
+                  <Card sx={{ m: 2 }}>
+                    <CardContent>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <img
+                          src={avatarImages[player.avatar].url}
+                          width={'60rem'}
+                          alt=""
+                          style={{ borderRadius: '1rem', marginBottom: '1rem' }}
+                        />
+                        <Typography variant="h4">{player.points}</Typography>
+                        <Typography variant="subtitle1">
+                          {player.name.toUpperCase()}
+                        </Typography>
+                        <Typography
+                          variant="overline"
+                          color={
+                            player.status === 'ready' ? 'success' : 'error'
+                          }
+                        >
+                          {player.status}
+                        </Typography>
+                      </div>{' '}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={markAsReady}
+                      >
+                        Set Ready!
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card sx={{ m: 2 }}>
+                    <CardContent>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <img
+                          src={avatarImages[player.avatar].url}
+                          width={'60rem'}
+                          alt=""
+                          style={{ borderRadius: '1rem', marginBottom: '1rem' }}
+                        />
+                        <Typography variant="h4">{player.points}</Typography>
+                        <Typography variant="subtitle1">
+                          {player.name.toUpperCase()}
+                        </Typography>
+                        <Typography
+                          variant="overline"
+                          color={
+                            player.status === 'ready' ? 'success' : 'error'
+                          }
+                        >
+                          {player.status}
+                        </Typography>
+                      </div>{' '}
+                    </CardContent>
+                  </Card>
+                )
+              )
+            : 'loading players'}
+        </CardContent>
+      </Card>
     </div>
   )
 }

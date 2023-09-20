@@ -1,7 +1,6 @@
 import React from 'react'
 import './Header.css'
 const Header = ({ roomInfo }) => {
-  console.log('onHeader', roomInfo)
   return (
     <div
       className="header"

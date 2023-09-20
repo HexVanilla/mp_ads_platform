@@ -10,6 +10,10 @@ const { getDatabase, ref, set, get } = require('firebase/database')
 const app = initializeApp(firebaseConfig)
 const database = getDatabase(app)
 
+console.log('db', database)
+//UID
+const { v4: uuidv4 } = require('uuid')
+
 const server = appExpress.listen(3001, function () {
   console.log('server running on port 3001')
 })
@@ -30,23 +34,9 @@ let rooms = {}
 //20 minutes in milliseconds
 const ROOM_EXPIRATION_TIME = 10 * 60 * 1000
 //Local ads
-let ads = {
-  bar: {
-    name: 'Moes Bar',
-    header: 'https://placehold.co/600x400',
-    fullPage: 'https://placehold.co/800x800',
-  },
-  restaurant: {
-    name: 'Red Lobster',
-    header: 'https://placehold.co/600x400',
-    fullPage: 'https://placehold.co/800x800',
-  },
-  default: {
-    name: 'Default',
-    header: 'https://placehold.co/600x400',
-    fullPage: 'https://placehold.co/800x800',
-  },
-}
+let ads = {}
+//Local avatars
+let avatars = []
 
 // Periodic Check
 setInterval(() => {
@@ -92,7 +82,6 @@ async function initializeRoomsFromDatabase() {
     console.error('Failed to fetch rooms data:', error)
   }
 }
-
 initializeRoomsFromDatabase()
 
 async function initializeClientsFromDatabase() {
@@ -110,8 +99,26 @@ async function initializeClientsFromDatabase() {
     console.error('Failed to fetch clients data:', error)
   }
 }
-
 initializeClientsFromDatabase()
+
+async function initializeAvatarsFromDatabase() {
+  try {
+    const snapshot = await get(ref(database, 'avatars'))
+    if (snapshot.exists()) {
+      const persistedAvatars = snapshot.val()
+      // Directly assign the object from Firebase to the rooms variable
+      avatars = { ...persistedAvatars }
+      console.log('Avatars', avatars)
+    } else {
+      console.log('No Avatars data available in database.')
+    }
+  } catch (error) {
+    console.error('Failed to fetch Avatars data:', error)
+  }
+}
+initializeAvatarsFromDatabase()
+
+//Sockets
 
 io.on('connection', (socket) => {
   socket.on('onLanding', async (data, ackCallback) => {
@@ -125,24 +132,29 @@ io.on('connection', (socket) => {
       : ackCallback({ data: ads['default'] })
   })
 
+  socket.on('avatarSelector', async (ackCallback) => {
+    ackCallback(avatars)
+  })
+
   //A Host Enters, is added to Room Array
-  socket.on('create_room', (data) => {
+  socket.on('create_room', async (data, ackCallback) => {
     console.log(
       `${data.playerName} with socketId: ${socket.id} has created a room: ${data.roomId}`
     )
     const startTime = Date.now()
     const roomAds = ads[data.roomAds] ? ads[data.roomAds] : ads['default']
+    const uniqueId = uuidv4()
     rooms[data.roomId] = {
       id: data.roomId,
       name: data.roomName,
       ads: roomAds,
-      hostId: data.playerId,
+      hostId: uniqueId,
       hostName: data.playerName,
       startTime: startTime,
       onExtendedTime: false,
       players: [
         {
-          id: data.playerId,
+          id: uniqueId,
           name: data.playerName,
           avatar: data.playerAvatar,
           status: 'not-ready',
@@ -150,24 +162,29 @@ io.on('connection', (socket) => {
         },
       ],
     }
+    ackCallback({ id: uniqueId })
 
     console.log('Rooms the socket is in:', socket.rooms)
     persistRoomData(rooms[data.roomId])
   })
 
   //A player Enters, is added to Room Array
-  socket.on('join_room', async (data) => {
+  socket.on('join_room', async (data, ackCallback) => {
     let roomToJoin = rooms[data.roomId]
-
+    console.log(
+      `${data.playerName} with socketId: ${socket.id} has created a room: ${data.roomId}`
+    )
+    const uniqueId = uuidv4()
     if (roomToJoin) {
       roomToJoin.players.push({
-        id: data.playerId,
+        id: uniqueId,
         name: data.playerName,
         avatar: data.playerAvatar,
         status: 'not-ready',
         points: 0,
       })
 
+      ackCallback({ id: uniqueId })
       persistRoomData(rooms[data.roomId])
     } else {
       console.log('No such Room!')
@@ -179,7 +196,10 @@ io.on('connection', (socket) => {
     socket.join(data)
     let playersRoom = rooms[data]
     //Send Updated Room
-    io.in(data).emit('player_joined', playersRoom)
+    io.in(data).emit('player_joined', {
+      playersRoom: playersRoom,
+      avatars: avatars,
+    })
   })
 
   socket.on('player_status_change', (data) => {

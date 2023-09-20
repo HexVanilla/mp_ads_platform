@@ -19,7 +19,7 @@ import {
 const HostLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
   const [showPage, setShowPage] = useState(false)
-  const [avatar, setAvatar] = useState('')
+  const [avatar, setAvatar] = useState(0)
   const [nickname, setNickname] = useState('')
   const [roomName, setRoomName] = useState('')
   const [showHostWarning, setShowHostWarning] = useState(false)
@@ -39,14 +39,16 @@ const HostLanding = () => {
     ackResp()
   }, [])
 
-  const joinRoom = () => {
+  const createRoom = async () => {
+    console.log(avatar, nickname, roomName, businessId)
+
     if (
       avatar !== '' &&
       nickname !== '' &&
       roomName !== '' &&
       businessId !== null
     ) {
-      socket.emit('create_room', {
+      const response = await socket.emitWithAck('create_room', {
         playerAvatar: avatar,
         roomName: roomName,
         roomId: roomName,
@@ -54,7 +56,7 @@ const HostLanding = () => {
         playerName: nickname,
         playerId: nickname,
       })
-      sessionStorage.setItem('playerId', nickname)
+      sessionStorage.setItem('playerId', response.id)
     }
     setShowHostWarning(true)
   }
@@ -123,7 +125,7 @@ const HostLanding = () => {
                     <Box sx={{ m: 1 }}></Box>
                     <Divider variant="middle" />
                     <Box sx={{ m: 1 }}></Box>
-                    <Button variant="contained" onClick={joinRoom}>
+                    <Button variant="contained" onClick={createRoom}>
                       Crear Sesion
                     </Button>
                   </div>
