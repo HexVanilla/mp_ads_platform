@@ -1,0 +1,15 @@
+.header {
+  height: 10rem;
+}
+
+@media screen and (max-width: 425px) {
+  .header {
+    height: 15rem;
+  }
+}
+
+@media screen and (max-width: 375px) {
+  .header {
+    height: 18rem;
+  }
+}

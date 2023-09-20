@@ -1,0 +1,11 @@
+# .gitignore
+
+# Ignore .env files
+/client/.env
+/server/.env
+
+# Other general files/folders to ignore (e.g., node modules, logs, etc.)
+node_modules/
+*.log
+.DS_Store
+# ... (any other patterns you want to ignore)

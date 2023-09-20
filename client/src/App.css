@@ -1,0 +1,15 @@
+.app-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: lightblue;
+  height: 100vh;
+  width: 100vw;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
