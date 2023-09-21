@@ -4,7 +4,7 @@ import { Routes, Route } from 'react-router-dom'
 import HostLanding from './pages/HostLanding'
 import PlayerLanding from './pages/PlayerLanding'
 import Lobby from './pages/Lobby'
-import Game from './pages/Game'
+import TriviaGame from './pages/TriviaGame'
 import Admin from './pages/Admin'
 
 function App() {
@@ -19,7 +19,7 @@ function App() {
             element={<PlayerLanding />}
           />
           <Route path="/lobby/:businessId/:roomId" element={<Lobby />} />
-          <Route path="/game/:businessId/:roomId" element={<Game />} />
+          <Route path="/game/:businessId/:roomId" element={<TriviaGame />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </div>

@@ -11,8 +11,9 @@ import {
   Box,
   Dialog,
   DialogTitle,
-  Container,
 } from '@mui/material'
+
+import PlayerCard from '../components/PlayerCard'
 
 const Lobby = () => {
   const [roomInfo, setRoomInfo] = useState('')
@@ -63,7 +64,8 @@ const Lobby = () => {
   }, [])
 
   useEffect(() => {
-    if (playersReady && selectedGame === 'ClickO')
+    console.log(selectedGame)
+    if (playersReady && selectedGame.name === 'Trivia')
       navigate(`/game/${businessId}/${roomId}`)
   }, [playersReady, selectedGame])
 
@@ -119,7 +121,7 @@ const Lobby = () => {
   }
 
   const selectGame = () => {
-    socket.emit('game_selected', { game: 'ClickO', roomId: roomId })
+    socket.emit('game_selected', { game: 'trivia', roomId: roomId })
   }
 
   return (
@@ -155,112 +157,91 @@ const Lobby = () => {
       ) : (
         ''
       )}
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h6">Host</Typography>
-          {roomInfo !== '' ? (
-            <>
-              <Typography variant="subtitle2">{roomInfo.hostName}</Typography>
-            </>
-          ) : (
-            'loading room info'
-          )}
-          {roomInfo !== '' ? (
-            localPlayerId == roomInfo.hostId ? (
-              <>
-                <p>{selectedGame}</p>
+
+      {roomInfo !== '' ? (
+        localPlayerId === roomInfo.hostId ? (
+          <Card sx={{ m: 1 }}>
+            <CardContent>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Typography variant="button">Host</Typography>
+                <Typography variant="subtitle1">
+                  {roomInfo.hostName.toUpperCase()}
+                </Typography>
                 <Button variant="contained" onClick={selectGame}>
                   pick game
                 </Button>
-              </>
-            ) : (
-              ''
-            )
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          ''
+        )
+      ) : (
+        'loading room info'
+      )}
+
+      <Card sx={{ m: 1 }}>
+        <CardContent style={{ flex: 1 }}>
+          {roomInfo !== '' ? (
+            <>
+              <Typography variant="button">Game</Typography>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '12rem',
+                    height: '12rem',
+                    borderRadius: '1rem',
+                    backgroundImage: `url(${selectedGame.img})`,
+                    backgroundPosition: 'center',
+                    backgroundSize: 'cover',
+                  }}
+                ></div>
+                <Typography variant="h5">
+                  {selectedGame.name !== ''
+                    ? selectedGame.name
+                    : 'No Game selected!'}
+                </Typography>
+              </div>
+            </>
           ) : (
             'loading room info'
           )}
         </CardContent>
       </Card>
-      <Card sx={{ width: { xs: 320, sm: 600 } }}>
-        <CardContent>
-          <Typography variant="h2">Players</Typography>
-          {playersList !== ''
-            ? playersList.map((player) =>
-                player.id === localPlayerId ? (
-                  <Card sx={{ m: 2 }}>
-                    <CardContent>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <img
-                          src={avatarImages[player.avatar].url}
-                          width={'60rem'}
-                          alt=""
-                          style={{ borderRadius: '1rem', marginBottom: '1rem' }}
-                        />
-                        <Typography variant="h4">{player.points}</Typography>
-                        <Typography variant="subtitle1">
-                          {player.name.toUpperCase()}
-                        </Typography>
-                        <Typography
-                          variant="overline"
-                          color={
-                            player.status === 'ready' ? 'success' : 'error'
-                          }
-                        >
-                          {player.status}
-                        </Typography>
-                      </div>{' '}
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={markAsReady}
-                      >
-                        Set Ready!
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card sx={{ m: 2 }}>
-                    <CardContent>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <img
-                          src={avatarImages[player.avatar].url}
-                          width={'60rem'}
-                          alt=""
-                          style={{ borderRadius: '1rem', marginBottom: '1rem' }}
-                        />
-                        <Typography variant="h4">{player.points}</Typography>
-                        <Typography variant="subtitle1">
-                          {player.name.toUpperCase()}
-                        </Typography>
-                        <Typography
-                          variant="overline"
-                          color={
-                            player.status === 'ready' ? 'success' : 'error'
-                          }
-                        >
-                          {player.status}
-                        </Typography>
-                      </div>{' '}
-                    </CardContent>
-                  </Card>
-                )
+      <Card sx={{ m: 1 }}>
+        <Typography variant="h3" sx={{ m: 2 }}>
+          Players
+        </Typography>
+        {playersList !== ''
+          ? playersList.map((player) =>
+              player.id === localPlayerId ? (
+                <PlayerCard
+                  player={player}
+                  showButton={true}
+                  avatarImages={avatarImages}
+                  markAsReady={markAsReady}
+                />
+              ) : (
+                <PlayerCard
+                  player={player}
+                  showButton={false}
+                  avatarImages={avatarImages}
+                />
               )
-            : 'loading players'}
-        </CardContent>
+            )
+          : 'loading players'}
       </Card>
     </div>
   )

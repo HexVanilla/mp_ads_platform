@@ -32,11 +32,19 @@ function persistRoomData(room) {
 //Local Rooms
 let rooms = {}
 //20 minutes in milliseconds
-const ROOM_EXPIRATION_TIME = 10 * 60 * 1000
+const ROOM_EXPIRATION_TIME = 20 * 60 * 1000
 //Local ads
 let ads = {}
 //Local avatars
 let avatars = []
+//Local Games
+let games = {
+  trivia: {
+    name: 'Trivia',
+    img: 'https://firebasestorage.googleapis.com/v0/b/multiplayerplatform-71d9a.appspot.com/o/Games%2Ftrivia.jpg?alt=media&token=13adcab0-2030-4aec-ac76-88ed904924dd',
+  },
+}
+let triviaGameQuestions
 
 // Periodic Check
 setInterval(() => {
@@ -66,7 +74,7 @@ setInterval(() => {
       }
     }
   })
-}, 30 * 1000) // Run every 30 seconds
+}, 60 * 1000) // Run every minute
 
 async function initializeRoomsFromDatabase() {
   try {
@@ -118,6 +126,23 @@ async function initializeAvatarsFromDatabase() {
 }
 initializeAvatarsFromDatabase()
 
+async function initializeTriviaQuestionsFromDb() {
+  try {
+    const snapshot = await get(ref(database, 'questions'))
+    if (snapshot.exists()) {
+      const persistedQuestions = snapshot.val()
+      // Directly assign the object from Firebase to the rooms variable
+      triviaGameQuestions = { ...persistedQuestions }
+      //console.log('triviaGameQuestions', triviaGameQuestions)
+    } else {
+      console.log('No Trivia Questions data available in database.')
+    }
+  } catch (error) {
+    console.error('Failed to fetch Trivia Questions data:', error)
+  }
+}
+initializeTriviaQuestionsFromDb()
+
 //Sockets
 
 io.on('connection', (socket) => {
@@ -158,7 +183,8 @@ io.on('connection', (socket) => {
           name: data.playerName,
           avatar: data.playerAvatar,
           status: 'not-ready',
-          points: 0,
+          sessionPoints: 0,
+          perGamePoints: 0,
         },
       ],
     }
@@ -181,7 +207,8 @@ io.on('connection', (socket) => {
         name: data.playerName,
         avatar: data.playerAvatar,
         status: 'not-ready',
-        points: 0,
+        sessionPoints: 0,
+        perGamePoints: 0,
       })
 
       ackCallback({ id: uniqueId })
@@ -199,6 +226,7 @@ io.on('connection', (socket) => {
     io.in(data).emit('player_joined', {
       playersRoom: playersRoom,
       avatars: avatars,
+      games: games,
     })
   })
 
@@ -216,18 +244,53 @@ io.on('connection', (socket) => {
   })
 
   socket.on('game_selected', (data) => {
-    io.in(data.roomId).emit('game_to_players', data.game)
+    //check the game exists
+    if (games[data.game])
+      io.in(data.roomId).emit('game_to_players', games[data.game])
   })
 
-  socket.on('onGame', (data) => {
+  socket.on('onTriviaGame', (data) => {
     //Player Enters Game Page
     socket.join(data.gameId)
     let playersRoom = rooms[data.roomId]
+    let playerToChange = playersRoom.players.find(
+      (player) => player.id === data.playerId
+    )
+    playerToChange.perGamePoints = 0
     //Sends The Room the players are in
-    io.in(data.gameId).emit('game_start', playersRoom)
+    io.in(data.gameId).emit('trivia_game_ready', {
+      playersRoom: playersRoom,
+    })
   })
 
-  socket.on('game_finished', (data) => {
+  socket.on('trivia_next_question', (data, ackCallback) => {
+    ackCallback({
+      question: triviaGameQuestions[data.number].question,
+      options: triviaGameQuestions[data.number].options,
+    })
+  })
+
+  socket.on('trivia_check_question', (data, ackCallback) => {
+    let roomTochange = rooms[data.roomId]
+
+    let playerToChange = roomTochange.players.find(
+      (player) => player.id === data.playerId
+    )
+    console.log(triviaGameQuestions[data.number].answer, data.number)
+
+    if (data.number <= Object.keys(triviaGameQuestions).length - 2) {
+      if (triviaGameQuestions[data.number].answer === data.answer) {
+        playerToChange.perGamePoints++
+        ackCallback({ msg: 'correct' })
+      } else {
+        ackCallback({ msg: 'wrong' })
+      }
+    } else {
+      ackCallback({ msg: 'trivia ended' })
+    }
+  })
+
+  socket.on('game_finished', (data, ackCallback) => {
     //Game has ended, Player's status and points updated
     console.log('game finished!')
     let roomTochange = rooms[data.roomId]
@@ -235,11 +298,15 @@ io.on('connection', (socket) => {
     let playerToChange = roomTochange.players.find(
       (player) => player.id === data.id
     )
-    playerToChange.points += data.points
     playerToChange.status = data.status
+    playerToChange.sessionPoints += playerToChange.perGamePoints
 
-    //Send Updated Room
-    io.in(data.roomId).emit('player_update', roomTochange)
+    //Send Updated Room Game
+    ackCallback({ room: roomTochange })
+
+    //Send Updated Room To lobby
+    //io.in(data.roomId).emit('player_update', roomTochange)
+
     persistRoomData(rooms[data.roomId])
   })
 
