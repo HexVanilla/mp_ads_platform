@@ -44,7 +44,9 @@ let games = {
     img: 'https://firebasestorage.googleapis.com/v0/b/multiplayerplatform-71d9a.appspot.com/o/Games%2Ftrivia.jpg?alt=media&token=13adcab0-2030-4aec-ac76-88ed904924dd',
   },
 }
+//Trivia Game
 let triviaGameQuestions
+let triviaPlayerIdToQuestion = {}
 
 // Periodic Check
 setInterval(() => {
@@ -145,7 +147,11 @@ initializeTriviaQuestionsFromDb()
 
 //Sockets
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
+  const sockets = await io.fetchSockets()
+
+  console.log(`A user connected. Total connections: ${sockets.length}`)
+
   socket.on('onLanding', async (data, ackCallback) => {
     ads[data]
       ? ackCallback({ res: true, data: ads[data] })
@@ -166,6 +172,7 @@ io.on('connection', (socket) => {
     console.log(
       `${data.playerName} with socketId: ${socket.id} has created a room: ${data.roomId}`
     )
+
     const startTime = Date.now()
     const roomAds = ads[data.roomAds] ? ads[data.roomAds] : ads['default']
     const uniqueId = uuidv4()
@@ -245,11 +252,13 @@ io.on('connection', (socket) => {
 
   socket.on('game_selected', (data) => {
     //check the game exists
-    if (games[data.game])
+    if (games[data.game]) {
+      triviaPlayerIdToQuestion = {}
       io.in(data.roomId).emit('game_to_players', games[data.game])
+    }
   })
 
-  socket.on('onTriviaGame', (data) => {
+  socket.on('onTriviaGame', async (data, ackCallback) => {
     //Player Enters Game Page
     socket.join(data.gameId)
     let playersRoom = rooms[data.roomId]
@@ -257,29 +266,52 @@ io.on('connection', (socket) => {
       (player) => player.id === data.playerId
     )
     playerToChange.perGamePoints = 0
-    //Sends The Room the players are in
-    io.in(data.gameId).emit('trivia_game_ready', {
-      playersRoom: playersRoom,
-    })
+
+    triviaPlayerIdToQuestion[data.playerId] = {
+      id: data.playerId,
+      questionNumber: 0,
+    }
+
+    console.log(triviaPlayerIdToQuestion)
+
+    ackCallback({ room: playersRoom })
   })
 
   socket.on('trivia_next_question', (data, ackCallback) => {
-    ackCallback({
-      question: triviaGameQuestions[data.number].question,
-      options: triviaGameQuestions[data.number].options,
-    })
+    console.log(triviaPlayerIdToQuestion[data.playerId])
+    if (triviaPlayerIdToQuestion[data.playerId]) {
+      ackCallback({
+        question:
+          triviaGameQuestions[
+            triviaPlayerIdToQuestion[data.playerId].questionNumber
+          ].question,
+        options:
+          triviaGameQuestions[
+            triviaPlayerIdToQuestion[data.playerId].questionNumber
+          ].options,
+        questionNumber: triviaPlayerIdToQuestion[data.playerId].questionNumber,
+      })
+    }
   })
 
   socket.on('trivia_check_question', (data, ackCallback) => {
     let roomTochange = rooms[data.roomId]
-
+    console.log(
+      triviaGameQuestions[
+        triviaPlayerIdToQuestion[data.playerId].questionNumber
+      ].answer,
+      data.answer
+    )
     let playerToChange = roomTochange.players.find(
       (player) => player.id === data.playerId
     )
-    console.log(triviaGameQuestions[data.number].answer, data.number)
 
-    if (data.number <= Object.keys(triviaGameQuestions).length - 2) {
-      if (triviaGameQuestions[data.number].answer === data.answer) {
+    if (triviaPlayerIdToQuestion[data.playerId].questionNumber <= 19) {
+      if (
+        triviaGameQuestions[
+          triviaPlayerIdToQuestion[data.playerId].questionNumber
+        ].answer === data.answer
+      ) {
         playerToChange.perGamePoints++
         ackCallback({ msg: 'correct' })
       } else {
@@ -288,6 +320,7 @@ io.on('connection', (socket) => {
     } else {
       ackCallback({ msg: 'trivia ended' })
     }
+    triviaPlayerIdToQuestion[data.playerId].questionNumber++
   })
 
   socket.on('game_finished', (data, ackCallback) => {
@@ -303,9 +336,6 @@ io.on('connection', (socket) => {
 
     //Send Updated Room Game
     ackCallback({ room: roomTochange })
-
-    //Send Updated Room To lobby
-    //io.in(data.roomId).emit('player_update', roomTochange)
 
     persistRoomData(rooms[data.roomId])
   })

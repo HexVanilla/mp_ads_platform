@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react'
-import io from 'socket.io-client'
+import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import AvatarSelector from '../components/AvatarSelector'
@@ -14,13 +13,15 @@ import {
   Container,
 } from '@mui/material'
 
+import { SocketContext } from '../components/SocketContext'
+
 const PlayerLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
 
   const [avatar, setAvatar] = useState(0)
   const [nickname, setNickname] = useState('')
   const [roomName, setRoomName] = useState('')
-  const socket = io.connect('http://localhost:3001/')
+  const socket = useContext(SocketContext)
 
   const navigate = useNavigate()
 
@@ -36,6 +37,10 @@ const PlayerLanding = () => {
       if (response.data !== '') setroomInfo(response.data)
     }
     ackResp()
+
+    return () => {
+      socket.disconnect()
+    }
   }, [])
 
   const joinRoom = async () => {

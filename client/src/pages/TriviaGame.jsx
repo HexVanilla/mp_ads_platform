@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import io from 'socket.io-client'
 import Header from '../components/Header'
@@ -16,11 +16,14 @@ import {
   Radio,
 } from '@mui/material'
 
+import { SocketContext } from '../components/SocketContext'
+
 const TriviaGame = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
 
-  const socket = io.connect('http://localhost:3001/')
+  const socket = useContext(SocketContext)
+
   const { roomId, businessId } = useParams()
 
   const navigate = useNavigate()
@@ -34,45 +37,31 @@ const TriviaGame = () => {
   const [answerMsg, setAnswerMsg] = useState('')
   const [showReponseAlert, setShowReponseAlert] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [questionTimer, setQuestionTimer] = useState(0)
+
+  const [startTimer, setStartTimer] = useState(false)
 
   const handleSelectOption = (event) => {
     setSelectedOption(event.target.value)
   }
 
   useEffect(() => {
-    socket.emit('onTriviaGame', {
-      roomId: roomId,
-      gameId: `${roomId}_game`,
-      playerId: localPlayerId,
-    })
-  }, [])
-
-  useEffect(() => {
-    socket.on('trivia_game_ready', (data) => {
-      console.log('ACK_Game', data.playersRoom)
-      console.log('ACK_Game', data.questions)
-      setRoomInfo(data.playersRoom)
-      setPlayersList(data.playersRoom.players)
-      getNextQuestion(0)
-    })
-  }, [])
-
-  useEffect(() => {
-    socket.on('game_end_player_update', (data) => {
-      setRoomInfo(data)
-      setPlayersList(data.players)
-      setShowResults(true)
-      setTimeout(() => {
-        navigate(`/lobby/${businessId}/${roomId}`)
-      }, 8000)
-    })
-
-    // navigate(`/lobby/${businessId}/${roomId}`)
+    const ackResp = async () => {
+      const response = await socket.emitWithAck('onTriviaGame', {
+        roomId: roomId,
+        gameId: `${roomId}_game`,
+        playerId: localPlayerId,
+      })
+      setRoomInfo(response.room)
+      setPlayersList(response.room.players)
+      getNextQuestion()
+      setStartTimer(true)
+    }
+    ackResp()
   }, [])
 
   const checkeAnswer = async () => {
     const response = await socket.emitWithAck('trivia_check_question', {
-      number: curQuestion,
       answer: selectedOption,
       playerId: localPlayerId,
       roomId: roomId,
@@ -80,21 +69,46 @@ const TriviaGame = () => {
     setAnswerMsg(response.msg)
     setShowReponseAlert(true)
     if (curQuestion < 19) {
-      let questionNumer = curQuestion
-      questionNumer++
-      setCurQuestion(questionNumer)
-      getNextQuestion(questionNumer)
+      getNextQuestion()
+      setStartTimer(true)
     } else {
       finishGame()
     }
   }
 
-  const getNextQuestion = async (number) => {
+  const getNextQuestion = async () => {
     const response = await socket.emitWithAck('trivia_next_question', {
-      number: number,
+      playerId: localPlayerId,
     })
     setQuestion(response)
+    setCurQuestion(response.questionNumber)
+    setQuestionTimer(0)
   }
+
+  useEffect(() => {
+    if (startTimer) {
+      const intervalId = setInterval(() => {
+        setQuestionTimer((prevTime) => {
+          let newTime = prevTime + 1
+
+          if (newTime >= 100) {
+            checkeAnswer()
+            clearInterval(intervalId)
+            setStartTimer(false) // stop the current timer
+            return prevTime
+          }
+          return newTime
+        })
+        console.log(questionTimer)
+      }, 100)
+
+      // Cleanup function
+      return () => {
+        clearInterval(intervalId)
+      }
+    }
+  }, [startTimer])
+
   const finishGame = async () => {
     const response = await socket.emitWithAck('game_finished', {
       gameId: `${roomId}_game`,
@@ -113,22 +127,28 @@ const TriviaGame = () => {
   return (
     <div>
       {showReponseAlert ? <h1>{answerMsg}</h1> : ''}
+
       <Card>
         <CardContent>
           <Header roomInfo={roomInfo} />
-          <Card>
-            <CardContent>
-              <Typography variant="overline">{`Question ${
-                curQuestion + 1
-              }/20`}</Typography>
-              <Typography variant="subtitle1" gutterBottom>
-                {question.question}
-              </Typography>
-              <Box sx={{ width: '100%' }}>
-                <LinearProgress variant="determinate" value={10} />
-              </Box>
-            </CardContent>
-          </Card>
+          {showResults ? (
+            ''
+          ) : (
+            <Card>
+              <CardContent>
+                <Typography variant="overline">{`Question ${
+                  curQuestion + 1
+                }/20`}</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  {question.question}
+                </Typography>
+                <Box sx={{ width: '100%' }}>
+                  <LinearProgress variant="determinate" value={questionTimer} />
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
           {showResults ? (
             <>
               {playersList &&

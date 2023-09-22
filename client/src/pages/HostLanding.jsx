@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react'
-import io from 'socket.io-client'
+import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
 import AvatarSelector from '../components/AvatarSelector'
@@ -16,6 +15,8 @@ import {
   Container,
 } from '@mui/material'
 
+import { SocketContext } from '../components/SocketContext'
+
 const HostLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
   const [showPage, setShowPage] = useState(false)
@@ -24,7 +25,7 @@ const HostLanding = () => {
   const [roomName, setRoomName] = useState('')
   const [showHostWarning, setShowHostWarning] = useState(false)
 
-  const socket = io.connect('http://localhost:3001/')
+  const socket = useContext(SocketContext)
 
   const navigate = useNavigate()
   const { businessId } = useParams()
@@ -37,6 +38,10 @@ const HostLanding = () => {
       if (response.data !== '') setroomInfo(response.data)
     }
     ackResp()
+
+    return () => {
+      socket.disconnect()
+    }
   }, [])
 
   const createRoom = async () => {

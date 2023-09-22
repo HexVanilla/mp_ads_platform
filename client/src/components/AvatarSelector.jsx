@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import avatar01 from '../imgs/avatar01.jpg'
-import avatar02 from '../imgs/avatar02.jpg'
-import avatar03 from '../imgs/avatar03.jpg'
-import avatar04 from '../imgs/avatar04.jpg'
+import React, { useState, useEffect, useContext } from 'react'
+
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
-import io from 'socket.io-client'
+
+import { SocketContext } from './SocketContext'
 
 const AvatarSelector = ({ setAvatar }) => {
   const [selectedAvatar, setSelectedAvatar] = useState(0)
   const [images, setImages] = useState('')
 
-  const socket = io.connect('http://localhost:3001/')
+  const socket = useContext(SocketContext)
+
   useEffect(() => {
     const ackResp = async () => {
       const response = await socket.emitWithAck('avatarSelector')
@@ -18,6 +17,10 @@ const AvatarSelector = ({ setAvatar }) => {
       setImages(Object.values(response))
     }
     ackResp()
+
+    return () => {
+      socket.disconnect()
+    }
   }, [])
   const next = () => {
     let curAvatar = selectedAvatar

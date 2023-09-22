@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import io from 'socket.io-client'
 import {
   Card,
   CardContent,
   Typography,
-  TextField,
   Button,
   Divider,
   Box,
@@ -14,13 +12,15 @@ import {
 } from '@mui/material'
 
 import PlayerCard from '../components/PlayerCard'
+import { SocketContext } from '../components/SocketContext'
 
 const Lobby = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
   const [avatarImages, setAvatarImages] = useState('')
-  const socket = io.connect('http://localhost:3001/')
   const { roomId, businessId } = useParams()
+
+  const socket = useContext(SocketContext)
 
   const [showPopup, setShowPopup] = useState(false)
   const [showByePopup, setShowByePopup] = useState(false)
@@ -48,6 +48,10 @@ const Lobby = () => {
       setPlayersList(data.playersRoom.players)
       setAvatarImages(Object.values(data.avatars))
     })
+    // Cleanup
+    return () => {
+      socket.off('player_joined')
+    }
   }, [])
 
   useEffect(() => {
@@ -61,6 +65,10 @@ const Lobby = () => {
         setPlayersReady(true)
       }
     })
+    // Cleanup
+    return () => {
+      socket.off('player_update')
+    }
   }, [])
 
   useEffect(() => {
@@ -83,6 +91,11 @@ const Lobby = () => {
         endRoom()
       }, 2000)
     })
+    // Cleanup
+    return () => {
+      socket.off('room_expired')
+      socket.off('room_expired_hard')
+    }
   }, [])
 
   useEffect(() => {
@@ -95,6 +108,10 @@ const Lobby = () => {
     socket.on('game_to_players', (data) => {
       setselectedGame(data)
     })
+    // Cleanup
+    return () => {
+      socket.off('game_to_players')
+    }
   }, [])
 
   const markAsReady = () => {
