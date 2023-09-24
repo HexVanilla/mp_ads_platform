@@ -7,10 +7,11 @@ import {
   Button,
   Divider,
   Box,
+  Drawer,
   Dialog,
   DialogTitle,
 } from '@mui/material'
-
+import Header from '../components/Header'
 import PlayerCard from '../components/PlayerCard'
 import { SocketContext } from '../components/SocketContext'
 
@@ -18,6 +19,8 @@ const Lobby = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
   const [avatarImages, setAvatarImages] = useState('')
+  const [availableGames, setAvailableGames] = useState('')
+  const [showGames, setShowGames] = useState(false)
   const { roomId, businessId } = useParams()
 
   const socket = useContext(SocketContext)
@@ -37,7 +40,6 @@ const Lobby = () => {
 
   useEffect(() => {
     socket.emit('onLobby', roomId)
-    console.log(localPlayerId)
   }, [])
 
   useEffect(() => {
@@ -47,6 +49,7 @@ const Lobby = () => {
       setRoomInfo(data.playersRoom)
       setPlayersList(data.playersRoom.players)
       setAvatarImages(Object.values(data.avatars))
+      setAvailableGames(Object.values(data.games))
     })
     // Cleanup
     return () => {
@@ -73,8 +76,11 @@ const Lobby = () => {
 
   useEffect(() => {
     console.log(selectedGame)
-    if (playersReady && selectedGame.name === 'Trivia')
-      navigate(`/game/${businessId}/${roomId}`)
+    if (playersReady && selectedGame.name === 'Trivia') {
+      navigate(`/triviaGame/${businessId}/${roomId}`)
+    } else if (playersReady && selectedGame.name === 'Balloon Popper') {
+      navigate(`/balloonPopperGame/${businessId}/${roomId}`)
+    }
   }, [playersReady, selectedGame])
 
   useEffect(() => {
@@ -99,9 +105,12 @@ const Lobby = () => {
   }, [])
 
   useEffect(() => {
-    setTimeout(() => {
+    const gracePeridoTimer = setTimeout(() => {
       if (showPopup && popupGracePeriod) endRoom()
     }, 5000)
+    return () => {
+      clearTimeout(gracePeridoTimer)
+    }
   }, [popupGracePeriod])
 
   useEffect(() => {
@@ -128,6 +137,7 @@ const Lobby = () => {
 
   const keepPlaying = () => {
     socket.emit('keep_playing', roomId)
+    setPopupGracePeriod(false)
     setShowPopup(false)
   }
 
@@ -137,73 +147,94 @@ const Lobby = () => {
     navigate(`/`)
   }
 
-  const selectGame = () => {
-    socket.emit('game_selected', { game: 'trivia', roomId: roomId })
+  const selectGame = (e, selectedGame) => {
+    e.preventDefault()
+    socket.emit('game_selected', { game: selectedGame, roomId: roomId })
+    setShowGames(false)
   }
 
   return (
-    <div>
-      {showPopup ? (
-        <div
-          style={{
-            position: 'absolute',
-            zIndex: 10,
-            backgroundColor: 'lightgray',
-            padding: '1rem',
-          }}
-        >
-          <p>Expiro la Sesion!</p>
-          <button onClick={keepPlaying}>Seguir Jugando</button>
-          <button onClick={endRoom}>Cerrar</button>
-        </div>
-      ) : (
-        ''
-      )}
-
-      {showByePopup ? (
-        <div
-          style={{
-            position: 'absolute',
-            zIndex: 10,
-            backgroundColor: 'lightgray',
-            padding: '1rem',
-          }}
-        >
-          <p>Expiro la Sesion!</p>
-        </div>
-      ) : (
-        ''
-      )}
-
-      {roomInfo !== '' ? (
-        localPlayerId === roomInfo.hostId ? (
-          <Card sx={{ m: 1 }}>
-            <CardContent>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Typography variant="button">Host</Typography>
-                <Typography variant="subtitle1">
-                  {roomInfo.hostName.toUpperCase()}
-                </Typography>
-                <Button variant="contained" onClick={selectGame}>
-                  pick game
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+    <>
+      <Dialog open={showPopup}>
+        <DialogTitle>Expiro la Sesion!</DialogTitle>{' '}
+        <Button onClick={keepPlaying} variant="contained" sx={{ m: 1 }}>
+          Seguir Jugando
+        </Button>
+        <Button onClick={endRoom} variant="outlined" sx={{ m: 1 }}>
+          Cerrar
+        </Button>
+      </Dialog>
+      <Dialog open={showByePopup}>
+        <DialogTitle>Expiro la Sesion!</DialogTitle>{' '}
+      </Dialog>
+      <Drawer anchor={'top'} open={showGames}>
+        {availableGames &&
+          availableGames.map((game) => (
+            <Card sx={{ m: 2 }}>
+              <CardContent>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '8rem',
+                      height: '8rem',
+                      borderRadius: '1rem',
+                      backgroundImage: `url(${game.img})`,
+                      backgroundPosition: 'center',
+                      backgroundSize: 'cover',
+                    }}
+                  ></div>
+                  <Typography variant="overline">{game.name}</Typography>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => selectGame(e, game.id)}
+                  >
+                    Elegir!
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+      </Drawer>
+      <Card sx={{ width: '100%', m: 0, boxShadow: 'none' }}>
+        <Header roomInfo={roomInfo.ads} />
+        {roomInfo !== '' ? (
+          localPlayerId === roomInfo.hostId ? (
+            <Card sx={{ m: 1 }}>
+              <CardContent>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant="button">Host</Typography>
+                  <Typography variant="subtitle1">
+                    {roomInfo.hostName.toUpperCase()}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={() => setShowGames(true)}
+                  >
+                    pick game
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            ''
+          )
         ) : (
-          ''
-        )
-      ) : (
-        'loading room info'
-      )}
+          'loading room info'
+        )}
 
-      <Card sx={{ m: 1 }}>
         <CardContent style={{ flex: 1 }}>
           {roomInfo !== '' ? (
             <>
@@ -217,8 +248,8 @@ const Lobby = () => {
               >
                 <div
                   style={{
-                    width: '12rem',
-                    height: '12rem',
+                    width: '8rem',
+                    height: '8rem',
                     borderRadius: '1rem',
                     backgroundImage: `url(${selectedGame.img})`,
                     backgroundPosition: 'center',
@@ -236,8 +267,6 @@ const Lobby = () => {
             'loading room info'
           )}
         </CardContent>
-      </Card>
-      <Card sx={{ m: 1 }}>
         <Typography variant="h3" sx={{ m: 2 }}>
           Players
         </Typography>
@@ -260,7 +289,7 @@ const Lobby = () => {
             )
           : 'loading players'}
       </Card>
-    </div>
+    </>
   )
 }
 

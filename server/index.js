@@ -40,8 +40,14 @@ let avatars = []
 //Local Games
 let games = {
   trivia: {
+    id: 'trivia',
     name: 'Trivia',
     img: 'https://firebasestorage.googleapis.com/v0/b/multiplayerplatform-71d9a.appspot.com/o/Games%2Ftrivia.jpg?alt=media&token=13adcab0-2030-4aec-ac76-88ed904924dd',
+  },
+  balloonPopper: {
+    id: 'balloonPopper',
+    name: 'Balloon Popper',
+    img: 'https://firebasestorage.googleapis.com/v0/b/multiplayerplatform-71d9a.appspot.com/o/Games%2Fpopper.png?alt=media&token=2a1ceec9-df43-44d7-b102-61ebf8893dec',
   },
 }
 //Trivia Game
@@ -152,6 +158,13 @@ io.on('connection', async (socket) => {
 
   console.log(`A user connected. Total connections: ${sockets.length}`)
 
+  socket.on('disconnect', (reason) => {
+    console.log('Socket disconnected due to:', reason)
+    if (reason === 'io server disconnect') {
+      socket.connect() // Try to reconnect if server caused the disconnect
+    }
+  })
+
   socket.on('onLanding', async (data, ackCallback) => {
     ads[data]
       ? ackCallback({ res: true, data: ads[data] })
@@ -225,7 +238,11 @@ io.on('connection', async (socket) => {
     }
   })
 
+  //####################### ON LOBBY ###########################
+
   socket.on('onLobby', (data) => {
+    console.log('a player just enter lobby')
+
     //A player enters the lobby and Join the Socket.io Room
     socket.join(data)
     let playersRoom = rooms[data]
@@ -252,11 +269,14 @@ io.on('connection', async (socket) => {
 
   socket.on('game_selected', (data) => {
     //check the game exists
+    console.log(data)
     if (games[data.game]) {
       triviaPlayerIdToQuestion = {}
       io.in(data.roomId).emit('game_to_players', games[data.game])
     }
   })
+
+  //####################### TRIVIA GAME ###########################
 
   socket.on('onTriviaGame', async (data, ackCallback) => {
     //Player Enters Game Page
@@ -274,7 +294,7 @@ io.on('connection', async (socket) => {
 
     console.log(triviaPlayerIdToQuestion)
 
-    ackCallback({ room: playersRoom })
+    ackCallback({ room: playersRoom, avatars: avatars, games: games })
   })
 
   socket.on('trivia_next_question', (data, ackCallback) => {
@@ -313,19 +333,30 @@ io.on('connection', async (socket) => {
         ].answer === data.answer
       ) {
         playerToChange.perGamePoints++
-        ackCallback({ msg: 'correct' })
+        ackCallback({
+          msg: 'correct',
+          questionNumber:
+            triviaPlayerIdToQuestion[data.playerId].questionNumber,
+        })
       } else {
-        ackCallback({ msg: 'wrong' })
+        ackCallback({
+          msg: 'wrong',
+          questionNumber:
+            triviaPlayerIdToQuestion[data.playerId].questionNumber,
+        })
       }
     } else {
-      ackCallback({ msg: 'trivia ended' })
+      ackCallback({
+        msg: 'trivia ended',
+        questionNumber: triviaPlayerIdToQuestion[data.playerId].questionNumber,
+      })
     }
     triviaPlayerIdToQuestion[data.playerId].questionNumber++
   })
 
-  socket.on('game_finished', (data, ackCallback) => {
+  socket.on('triviaGame_finished', (data, ackCallback) => {
     //Game has ended, Player's status and points updated
-    console.log('game finished!')
+    console.log('Trivia Game finished!')
     let roomTochange = rooms[data.roomId]
 
     let playerToChange = roomTochange.players.find(
@@ -339,6 +370,8 @@ io.on('connection', async (socket) => {
 
     persistRoomData(rooms[data.roomId])
   })
+
+  //####################### ROOM EXPIRE ###########################
 
   socket.on('end_room', (data) => {
     console.log(`${rooms[data]} is going to end the room!`)
@@ -355,7 +388,49 @@ io.on('connection', async (socket) => {
     const newStartTime = Date.now()
     rooms[data].startTime = newStartTime
     rooms[data].onExtendedTime = true
-    console.log(`${rooms[data]} is going to keep playing, timer reset!`)
+    console.log(`${rooms[data].id} is going to keep playing, timer reset!`)
     persistRoomData(rooms[data])
+  })
+
+  //####################### ADS ###########################
+
+  socket.on('onAds', async (data, ackCallback) => {
+    //Player Enters Ads Page
+    socket.join(data.adsRoomId)
+    let playersRoom = rooms[data.roomId]
+
+    ackCallback({ room: playersRoom })
+  })
+
+  //####################### BALLOON GAME ###########################
+
+  socket.on('onBalloonPopper', async (data, ackCallback) => {
+    //Player Enters Game Page
+    socket.join(data.gameId)
+    let playersRoom = rooms[data.roomId]
+    let playerToChange = playersRoom.players.find(
+      (player) => player.id === data.playerId
+    )
+    playerToChange.perGamePoints = 0
+
+    ackCallback({ room: playersRoom })
+  })
+
+  socket.on('balloonPopperGame_finished', (data, ackCallback) => {
+    //Game has ended, Player's status and points updated
+    console.log('BallonPopper game finished!')
+    let roomTochange = rooms[data.roomId]
+
+    let playerToChange = roomTochange.players.find(
+      (player) => player.id === data.id
+    )
+    playerToChange.status = data.status
+    playerToChange.perGamePoints = data.score
+    playerToChange.sessionPoints += playerToChange.perGamePoints
+
+    //Send Updated Room Game
+    ackCallback({ room: roomTochange })
+
+    persistRoomData(rooms[data.roomId])
   })
 })

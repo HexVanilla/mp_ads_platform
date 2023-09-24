@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import io from 'socket.io-client'
 import Header from '../components/Header'
 import {
   Card,
   CardContent,
   Typography,
-  TextField,
   Button,
-  Divider,
   Box,
-  Dialog,
-  DialogTitle,
+  Snackbar,
+  Alert,
   LinearProgress,
   Radio,
 } from '@mui/material'
@@ -21,6 +18,7 @@ import { SocketContext } from '../components/SocketContext'
 const TriviaGame = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
+  const [avatar, setAvatar] = useState('')
 
   const socket = useContext(SocketContext)
 
@@ -34,12 +32,13 @@ const TriviaGame = () => {
   const [selectedOption, setSelectedOption] = useState('a')
   const [question, setQuestion] = useState('')
   const [curQuestion, setCurQuestion] = useState(0)
-  const [answerMsg, setAnswerMsg] = useState('')
-  const [showReponseAlert, setShowReponseAlert] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [questionTimer, setQuestionTimer] = useState(0)
 
   const [startTimer, setStartTimer] = useState(false)
+
+  const [showCorrectAlert, setShowCorrectAlert] = useState(false)
+  const [showWrongAlert, setShowWrongAlert] = useState(false)
 
   const handleSelectOption = (event) => {
     setSelectedOption(event.target.value)
@@ -49,11 +48,12 @@ const TriviaGame = () => {
     const ackResp = async () => {
       const response = await socket.emitWithAck('onTriviaGame', {
         roomId: roomId,
-        gameId: `${roomId}_game`,
+        gameId: `${roomId}_trivia`,
         playerId: localPlayerId,
       })
       setRoomInfo(response.room)
       setPlayersList(response.room.players)
+      setAvatar(Object.values(response.avatars))
       getNextQuestion()
       setStartTimer(true)
     }
@@ -66,9 +66,14 @@ const TriviaGame = () => {
       playerId: localPlayerId,
       roomId: roomId,
     })
-    setAnswerMsg(response.msg)
-    setShowReponseAlert(true)
-    if (curQuestion < 19) {
+
+    response.msg === 'correct'
+      ? setShowCorrectAlert(true)
+      : setShowWrongAlert(true)
+
+    console.log('server', response.questionNumber)
+
+    if (response.questionNumber < 19) {
       getNextQuestion()
       setStartTimer(true)
     } else {
@@ -76,13 +81,25 @@ const TriviaGame = () => {
     }
   }
 
+  useEffect(() => {
+    setTimeout(() => {
+      showWrongAlert === true ? setShowWrongAlert(false) : ''
+    }, 2000)
+  }, [showWrongAlert])
+
+  useEffect(() => {
+    setTimeout(() => {
+      showCorrectAlert === true ? setShowCorrectAlert(false) : ''
+    }, 2000)
+  }, [showCorrectAlert])
+
   const getNextQuestion = async () => {
     const response = await socket.emitWithAck('trivia_next_question', {
       playerId: localPlayerId,
     })
     setQuestion(response)
+    setQuestionTimer(-10)
     setCurQuestion(response.questionNumber)
-    setQuestionTimer(0)
   }
 
   useEffect(() => {
@@ -90,7 +107,6 @@ const TriviaGame = () => {
       const intervalId = setInterval(() => {
         setQuestionTimer((prevTime) => {
           let newTime = prevTime + 1
-
           if (newTime >= 100) {
             checkeAnswer()
             clearInterval(intervalId)
@@ -99,19 +115,14 @@ const TriviaGame = () => {
           }
           return newTime
         })
-        console.log(questionTimer)
       }, 100)
-
-      // Cleanup function
-      return () => {
-        clearInterval(intervalId)
-      }
     }
   }, [startTimer])
 
   const finishGame = async () => {
-    const response = await socket.emitWithAck('game_finished', {
-      gameId: `${roomId}_game`,
+    setStartTimer(false)
+    const response = await socket.emitWithAck('triviaGame_finished', {
+      gameId: `${roomId}_trivia`,
       roomId: roomId,
       status: 'not-ready',
       id: localPlayerId,
@@ -119,18 +130,33 @@ const TriviaGame = () => {
     setRoomInfo(response.room)
     setPlayersList(response.room.players)
     setShowResults(true)
+
     setTimeout(() => {
-      navigate(`/lobby/${businessId}/${roomId}`)
+      navigate(`/ads/${businessId}/${roomId}`)
     }, 8000)
   }
 
   return (
     <div>
-      {showReponseAlert ? <h1>{answerMsg}</h1> : ''}
-
-      <Card>
+      <Snackbar
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        open={showCorrectAlert}
+      >
+        <Alert variant="filled" severity="success" sx={{ width: '100%' }}>
+          This is a success message!
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        open={showWrongAlert}
+      >
+        <Alert variant="filled" severity="error" sx={{ width: '100%' }}>
+          This is an error message!
+        </Alert>
+      </Snackbar>
+      <Card sx={{ width: '100vw', m: 0, boxShadow: 'none' }}>
         <CardContent>
-          <Header roomInfo={roomInfo} />
+          {roomInfo && <Header roomInfo={roomInfo.ads} />}
           {showResults ? (
             ''
           ) : (
@@ -156,8 +182,37 @@ const TriviaGame = () => {
                   player.id === localPlayerId ? (
                     <Card>
                       <CardContent>
-                        <Typography>Tu Puntaje</Typography>
-                        <Typography>{player.perGamePoints}</Typography>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Typography variant="h5" gutterBottom>
+                            Juego Terminado!
+                          </Typography>
+                          <img
+                            src={avatar[player.avatar].url}
+                            style={{
+                              width: '100%',
+                              maxWidth: '6rem',
+                              borderRadius: '1rem',
+                              margin: '1rem',
+                            }}
+                          />
+
+                          <Typography variant="h3" gutterBottom>
+                            Tu Puntaje
+                          </Typography>
+                          <Typography variant="h2" gutterBottom>
+                            {player.perGamePoints}
+                          </Typography>
+                          <Typography variant="overline">
+                            Pronto volveras al lobby...
+                          </Typography>
+                        </div>
                       </CardContent>
                     </Card>
                   ) : (

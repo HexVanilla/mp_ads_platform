@@ -17,10 +17,6 @@ const AvatarSelector = ({ setAvatar }) => {
       setImages(Object.values(response))
     }
     ackResp()
-
-    return () => {
-      socket.disconnect()
-    }
   }, [])
   const next = () => {
     let curAvatar = selectedAvatar

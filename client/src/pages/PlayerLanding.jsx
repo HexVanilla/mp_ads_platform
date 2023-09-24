@@ -37,10 +37,6 @@ const PlayerLanding = () => {
       if (response.data !== '') setroomInfo(response.data)
     }
     ackResp()
-
-    return () => {
-      socket.disconnect()
-    }
   }, [])
 
   const joinRoom = async () => {

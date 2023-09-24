@@ -31,6 +31,7 @@ const HostLanding = () => {
   const { businessId } = useParams()
 
   useEffect(() => {
+    console.log(socket)
     const ackResp = async () => {
       const response = await socket.emitWithAck('onLanding', businessId)
       console.log('Business Exists?', response)
@@ -38,10 +39,6 @@ const HostLanding = () => {
       if (response.data !== '') setroomInfo(response.data)
     }
     ackResp()
-
-    return () => {
-      socket.disconnect()
-    }
   }, [])
 
   const createRoom = async () => {

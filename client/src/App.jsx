@@ -5,6 +5,8 @@ import HostLanding from './pages/HostLanding'
 import PlayerLanding from './pages/PlayerLanding'
 import Lobby from './pages/Lobby'
 import TriviaGame from './pages/TriviaGame'
+import BalloonPopperGame from './pages/BalloonPopperGame'
+import FullPageAd from './pages/FullPageAd'
 import Admin from './pages/Admin'
 import { SocketProvider } from './components/SocketContext'
 
@@ -21,7 +23,15 @@ function App() {
               element={<PlayerLanding />}
             />
             <Route path="/lobby/:businessId/:roomId" element={<Lobby />} />
-            <Route path="/game/:businessId/:roomId" element={<TriviaGame />} />
+            <Route
+              path="/triviaGame/:businessId/:roomId"
+              element={<TriviaGame />}
+            />
+            <Route
+              path="/balloonPopperGame/:businessId/:roomId"
+              element={<BalloonPopperGame />}
+            />
+            <Route path="/ads/:businessId/:roomId" element={<FullPageAd />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
         </SocketProvider>
