@@ -14,21 +14,38 @@ import {
 } from '@mui/material'
 
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
 
 const PlayerLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
 
   const [avatar, setAvatar] = useState(0)
   const [nickname, setNickname] = useState('')
-  const [roomName, setRoomName] = useState('')
-  const socket = useContext(SocketContext)
+  const [roomUid, setRoomUid] = useState('')
+
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
 
   const navigate = useNavigate()
 
   const { roomId, businessId } = useParams()
 
   useEffect(() => {
-    setRoomName(roomId)
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/join/${businessId}/${roomId}`,
+      title: `${businessId}_join`,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (socketError !== null) navigate(`/serverDown`)
+  }, [socketError])
+
+  useEffect(() => {
+    //setRoomName(roomId)
+    setRoomUid(roomId)
   }, [])
 
   useEffect(() => {
@@ -40,11 +57,10 @@ const PlayerLanding = () => {
   }, [])
 
   const joinRoom = async () => {
-    if (avatar !== '' && nickname !== '' && roomName !== '') {
+    if (avatar !== '' && nickname !== '' && roomUid !== '') {
       const response = await socket.emitWithAck('join_room', {
         playerAvatar: avatar,
-        roomName: roomName,
-        roomId: roomName,
+        roomId: roomUid,
         playerName: nickname,
         playerId: nickname,
       })
@@ -54,7 +70,7 @@ const PlayerLanding = () => {
   }
 
   const goToLobby = () => {
-    navigate(`/lobby/${businessId}/${roomName}`)
+    if (roomUid !== '') navigate(`/lobby/${businessId}/${roomUid}`)
   }
 
   return (

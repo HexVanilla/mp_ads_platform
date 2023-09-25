@@ -8,12 +8,11 @@ const AvatarSelector = ({ setAvatar }) => {
   const [selectedAvatar, setSelectedAvatar] = useState(0)
   const [images, setImages] = useState('')
 
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
 
   useEffect(() => {
     const ackResp = async () => {
       const response = await socket.emitWithAck('avatarSelector')
-      console.log(Object.values(response))
       setImages(Object.values(response))
     }
     ackResp()

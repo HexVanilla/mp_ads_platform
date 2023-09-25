@@ -14,13 +14,15 @@ import {
 } from '@mui/material'
 
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
 
 const TriviaGame = () => {
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
   const [avatar, setAvatar] = useState('')
 
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
 
   const { roomId, businessId } = useParams()
 
@@ -45,6 +47,15 @@ const TriviaGame = () => {
   }
 
   useEffect(() => {
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/triviaGame/${businessId}/${roomId}`,
+      title: 'triviGame',
+    })
+  }, [])
+
+  useEffect(() => {
     const ackResp = async () => {
       const response = await socket.emitWithAck('onTriviaGame', {
         roomId: roomId,
@@ -52,7 +63,7 @@ const TriviaGame = () => {
         playerId: localPlayerId,
       })
       setRoomInfo(response.room)
-      setPlayersList(response.room.players)
+      setPlayersList(Object.values(response.room.players))
       setAvatar(Object.values(response.avatars))
       getNextQuestion()
       setStartTimer(true)
@@ -125,10 +136,10 @@ const TriviaGame = () => {
       gameId: `${roomId}_trivia`,
       roomId: roomId,
       status: 'not-ready',
-      id: localPlayerId,
+      playerId: localPlayerId,
     })
     setRoomInfo(response.room)
-    setPlayersList(response.room.players)
+    setPlayersList(Object.values(response.room.players))
     setShowResults(true)
 
     setTimeout(() => {
@@ -143,7 +154,7 @@ const TriviaGame = () => {
         open={showCorrectAlert}
       >
         <Alert variant="filled" severity="success" sx={{ width: '100%' }}>
-          This is a success message!
+          Correcto! Siguiente Pregunta.
         </Alert>
       </Snackbar>
       <Snackbar
@@ -151,7 +162,7 @@ const TriviaGame = () => {
         open={showWrongAlert}
       >
         <Alert variant="filled" severity="error" sx={{ width: '100%' }}>
-          This is an error message!
+          Equivocado! Siguiente pregunta.
         </Alert>
       </Snackbar>
       <Card sx={{ width: '100vw', m: 0, boxShadow: 'none' }}>

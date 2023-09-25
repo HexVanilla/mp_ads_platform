@@ -2,18 +2,30 @@ import React, { useEffect, useState, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
+
 const BalloonPopperGame = () => {
   const [score, setScore] = useState('')
   const [roomInfo, setRoomInfo] = useState('')
   const [playersList, setPlayersList] = useState('')
 
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
 
   const { roomId, businessId } = useParams()
 
   const navigate = useNavigate()
 
   let localPlayerId = sessionStorage.getItem('playerId')
+
+  useEffect(() => {
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/balloonPopperGame/${businessId}/${roomId}`,
+      title: 'balloonPopper',
+    })
+  }, [])
 
   useEffect(() => {
     const ackResp = async () => {
@@ -23,7 +35,7 @@ const BalloonPopperGame = () => {
         playerId: localPlayerId,
       })
       setRoomInfo(response.room)
-      setPlayersList(response.room.players)
+      setPlayersList(Object.values(response.room.players))
     }
     ackResp()
   }, [])
@@ -54,15 +66,15 @@ const BalloonPopperGame = () => {
       gameId: `${roomId}_ballonPopper`,
       roomId: roomId,
       status: 'not-ready',
-      id: localPlayerId,
+      playerId: localPlayerId,
       score: score,
     })
     setRoomInfo(response.room)
-    setPlayersList(response.room.players)
+    setPlayersList(Object.values(response.room.players))
 
     setTimeout(() => {
       navigate(`/ads/${businessId}/${roomId}`)
-    }, 8000)
+    }, 4000)
   }
 
   return (

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import './App.css'
 import { Routes, Route } from 'react-router-dom'
 import HostLanding from './pages/HostLanding'
@@ -7,6 +6,8 @@ import Lobby from './pages/Lobby'
 import TriviaGame from './pages/TriviaGame'
 import BalloonPopperGame from './pages/BalloonPopperGame'
 import FullPageAd from './pages/FullPageAd'
+import GoodBye from './pages/GoodBye'
+import ServerDown from './pages/ServerDown'
 import Admin from './pages/Admin'
 import { SocketProvider } from './components/SocketContext'
 
@@ -32,6 +33,8 @@ function App() {
               element={<BalloonPopperGame />}
             />
             <Route path="/ads/:businessId/:roomId" element={<FullPageAd />} />
+            <Route path="/goodbye/:businessId" element={<GoodBye />} />
+            <Route path="/serverDown" element={<ServerDown />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
         </SocketProvider>

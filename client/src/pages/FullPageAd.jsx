@@ -1,12 +1,23 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
 
 const FullPageAd = () => {
   const [roomInfo, setRoomInfo] = useState('')
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
   const navigate = useNavigate()
   const { roomId, businessId } = useParams()
+
+  useEffect(() => {
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/ads/${businessId}/${roomId}`,
+      title: `fullPageAd_${businessId}`,
+    })
+  }, [])
 
   useEffect(() => {
     const ackResp = async () => {

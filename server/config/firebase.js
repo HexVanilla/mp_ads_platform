@@ -9,4 +9,5 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
   databaseURL: process.env.FIREBASE_DATABASE_URL,
 }
+
 module.exports = { firebaseConfig }

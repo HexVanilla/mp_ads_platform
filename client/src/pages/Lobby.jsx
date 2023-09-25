@@ -5,8 +5,6 @@ import {
   CardContent,
   Typography,
   Button,
-  Divider,
-  Box,
   Drawer,
   Dialog,
   DialogTitle,
@@ -14,6 +12,7 @@ import {
 import Header from '../components/Header'
 import PlayerCard from '../components/PlayerCard'
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
 
 const Lobby = () => {
   const [roomInfo, setRoomInfo] = useState('')
@@ -23,7 +22,8 @@ const Lobby = () => {
   const [showGames, setShowGames] = useState(false)
   const { roomId, businessId } = useParams()
 
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
 
   const [showPopup, setShowPopup] = useState(false)
   const [showByePopup, setShowByePopup] = useState(false)
@@ -39,6 +39,19 @@ const Lobby = () => {
   localStorage.setItem('lastJoinedRoom', roomId)
 
   useEffect(() => {
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/lobby/${businessId}/${roomId}`,
+      title: 'lobby',
+    })
+  }, [])
+
+  useEffect(() => {
+    if (socketError !== null) navigate(`/serverDown`)
+  }, [socketError])
+
+  useEffect(() => {
     socket.emit('onLobby', roomId)
   }, [])
 
@@ -47,7 +60,7 @@ const Lobby = () => {
       console.log('ACK_OnLobby', data.playersRoom)
 
       setRoomInfo(data.playersRoom)
-      setPlayersList(data.playersRoom.players)
+      setPlayersList(Object.values(data.playersRoom.players))
       setAvatarImages(Object.values(data.avatars))
       setAvailableGames(Object.values(data.games))
     })
@@ -61,10 +74,15 @@ const Lobby = () => {
     socket.on('player_update', (playersRoom) => {
       console.log('Update!', playersRoom)
       console.log('Update! Game', selectedGame)
-      setRoomInfo(playersRoom)
-      setPlayersList(playersRoom.players)
 
-      if (playersRoom.players.every((player) => player.status === 'ready')) {
+      setRoomInfo(playersRoom)
+      setPlayersList(Object.values(playersRoom.players))
+
+      if (
+        Object.values(playersRoom.players).every(
+          (player) => player.status === 'ready'
+        )
+      ) {
         setPlayersReady(true)
       }
     })
@@ -128,7 +146,7 @@ const Lobby = () => {
       const player = playersList.find((player) => player.id === localPlayerId)
       const playerStatus = player.status
       socket.emit('player_status_change', {
-        id: player.id,
+        playerId: player.id,
         status: playerStatus == 'ready' ? 'not-ready' : 'ready',
         roomId: roomId,
       })
@@ -144,7 +162,8 @@ const Lobby = () => {
   const endRoom = () => {
     socket.emit('end_room', roomId)
     setShowPopup(false)
-    navigate(`/`)
+    socket.disconnect()
+    navigate(`/goodbye/${businessId}`)
   }
 
   const selectGame = (e, selectedGame) => {
@@ -215,7 +234,7 @@ const Lobby = () => {
                     alignItems: 'center',
                   }}
                 >
-                  <Typography variant="button">Host</Typography>
+                  <Typography variant="button">Anfitrion</Typography>
                   <Typography variant="subtitle1">
                     {roomInfo.hostName.toUpperCase()}
                   </Typography>
@@ -223,7 +242,7 @@ const Lobby = () => {
                     variant="contained"
                     onClick={() => setShowGames(true)}
                   >
-                    pick game
+                    Elige un juego
                   </Button>
                 </div>
               </CardContent>
@@ -238,7 +257,7 @@ const Lobby = () => {
         <CardContent style={{ flex: 1 }}>
           {roomInfo !== '' ? (
             <>
-              <Typography variant="button">Game</Typography>
+              <Typography variant="button">Juego</Typography>
               <div
                 style={{
                   display: 'flex',
@@ -268,7 +287,7 @@ const Lobby = () => {
           )}
         </CardContent>
         <Typography variant="h3" sx={{ m: 2 }}>
-          Players
+          Jugadores
         </Typography>
         {playersList !== ''
           ? playersList.map((player) =>

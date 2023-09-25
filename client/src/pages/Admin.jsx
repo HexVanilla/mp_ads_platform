@@ -10,6 +10,7 @@ import {
   Button,
   Alert,
 } from '@mui/material'
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 
 const Admin = () => {
   const [clientsDb, setClientsDb] = useState('')
@@ -32,6 +33,26 @@ const Admin = () => {
   const app = initializeApp(firebaseConfig)
   const database = getDatabase(app)
 
+  const auth = getAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [signedIn, setSignedIn] = useState(false)
+
+  function signIn() {
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        const user = userCredential.user
+        // You can now perform read/write operations on the database
+        setSignedIn(true)
+      })
+      .catch((error) => {
+        const errorCode = error.code
+        const errorMessage = error.message
+        console.error('Error signing in:', errorCode, errorMessage)
+      })
+  }
+
   //Clients
   useEffect(() => {
     fetchClients()
@@ -43,7 +64,6 @@ const Admin = () => {
       .then((snapshot) => {
         if (snapshot.exists()) {
           setAvatarsDb(Object.values(snapshot.val()))
-          console.log(Object.values(snapshot.val()))
         } else {
           console.log('No avatars data available')
         }
@@ -58,7 +78,6 @@ const Admin = () => {
       .then((snapshot) => {
         if (snapshot.exists()) {
           setClientsDb(Object.values(snapshot.val()))
-          console.log(Object.values(snapshot.val()))
         } else {
           console.log('No clients data available')
         }
@@ -203,180 +222,218 @@ const Admin = () => {
 
   return (
     <div>
-      <Typography variant="h1" sx={{ m: 2 }}>
-        Admin Panel
-      </Typography>
-      {showDeleteWarning ? (
-        <Alert
-          severity="warning"
-          action={
-            <Button color="inherit" size="small" onClick={removeClient}>
-              Ok
-            </Button>
-          }
-        >
-          {`Estas apunto de borrar a ${selectedForRemoval}`}
-        </Alert>
-      ) : (
-        ''
-      )}
-      {showSuccessAlert ? (
-        <Alert severity="success" onClose={() => {}}>
-          {`Agregaste exitosamente a ${selectedForUpload}`}
-        </Alert>
-      ) : (
-        ''
-      )}
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Client List
+      {signedIn ? (
+        <>
+          <Typography variant="h1" sx={{ m: 2 }}>
+            Admin Panel
           </Typography>
-          <Button onClick={handleShowClients}>Show Current Clients</Button>
-          {showClients
-            ? clientsDb !== ''
-              ? clientsDb.map((client) => (
-                  <Card sx={{ width: 'fit-content' }}>
-                    <CardContent>
-                      <Typography variant="overline">Id</Typography>
-                      <Typography variant="subtitle2">{client.id}</Typography>
-                      <Typography variant="overline">Name</Typography>
-                      <Typography variant="subtitle2">{client.name}</Typography>
-                      <Typography variant="overline">Header</Typography>
-                      <Typography variant="subtitle2">
-                        {client.header}
-                      </Typography>
-                      <Typography variant="overline">FullPage</Typography>
-                      <Typography variant="subtitle2" gutterBottom>
-                        {client.fullPage}
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        onClick={(e) => triggerDeleteWArning(e, client.id)}
-                      >
-                        Delete
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              : 'Mo Clients db'
-            : ''}
-        </CardContent>
-      </Card>
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Update Client List
-          </Typography>
-          <TextField
-            id="id"
-            label="Id"
-            variant="outlined"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-          />
-          <TextField
-            id="name"
-            label="Name"
-            variant="outlined"
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-          />
-          <TextField
-            id="header-ad"
-            label="Header Ad"
-            variant="outlined"
-            value={headerAd}
-            onChange={(e) => setHeaderAd(e.target.value)}
-          />
-          <TextField
-            id="fullpage-ad"
-            label="Fullpage Ad"
-            variant="outlined"
-            value={fullPageAd}
-            onChange={(e) => setFullPageAd(e.target.value)}
-          />
-        </CardContent>
-        <CardContent>
-          <Button variant="contained" color="success" onClick={uploadClient}>
-            Upload
-          </Button>
-        </CardContent>
-      </Card>
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Update Trivia Questions
-          </Typography>
-          <input type="file" onChange={handleFileChange} />
-          <Button
-            variant="contained"
-            color="success"
-            sx={{ m: 2 }}
-            onClick={uploadTrivia}
-          >
-            Upload
-          </Button>
-          <Button variant="contained" onClick={downloadTrivia}>
-            Download
-          </Button>
-        </CardContent>
-      </Card>
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Avatars
-          </Typography>
-          <Button onClick={handleShowAvatars}>Show Current Avatars</Button>
-          {showAvatars
-            ? avatarsDb !== ''
-              ? avatarsDb.map((avatar) => (
-                  <Card sx={{ width: 'fit-content' }}>
-                    <CardContent>
-                      <img src={avatar.url} alt="" width="60rem" />
-                      <Typography variant="subtitle2">{avatar.url}</Typography>
+          {showDeleteWarning ? (
+            <Alert
+              severity="warning"
+              action={
+                <Button color="inherit" size="small" onClick={removeClient}>
+                  Ok
+                </Button>
+              }
+            >
+              {`Estas apunto de borrar a ${selectedForRemoval}`}
+            </Alert>
+          ) : (
+            ''
+          )}
+          {showSuccessAlert ? (
+            <Alert severity="success" onClose={() => {}}>
+              {`Agregaste exitosamente a ${selectedForUpload}`}
+            </Alert>
+          ) : (
+            ''
+          )}
+          <Card sx={{ m: 2 }}>
+            <CardContent>
+              <Typography variant="h5" gutterBottom>
+                Client List
+              </Typography>
+              <Button onClick={handleShowClients}>Show Current Clients</Button>
+              {showClients
+                ? clientsDb !== ''
+                  ? clientsDb.map((client) => (
+                      <Card sx={{ width: 'fit-content' }}>
+                        <CardContent>
+                          <Typography variant="overline">Id</Typography>
+                          <Typography variant="subtitle2">
+                            {client.id}
+                          </Typography>
+                          <Typography variant="overline">Name</Typography>
+                          <Typography variant="subtitle2">
+                            {client.name}
+                          </Typography>
+                          <Typography variant="overline">Header</Typography>
+                          <Typography variant="subtitle2">
+                            {client.header}
+                          </Typography>
+                          <Typography variant="overline">FullPage</Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            {client.fullPage}
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            onClick={(e) => triggerDeleteWArning(e, client.id)}
+                          >
+                            Delete
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))
+                  : 'Mo Clients db'
+                : ''}
+            </CardContent>
+          </Card>
+          <Card sx={{ m: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Update Client List
+              </Typography>
+              <TextField
+                id="id"
+                label="Id"
+                variant="outlined"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              />
+              <TextField
+                id="name"
+                label="Name"
+                variant="outlined"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+              <TextField
+                id="header-ad"
+                label="Header Ad"
+                variant="outlined"
+                value={headerAd}
+                onChange={(e) => setHeaderAd(e.target.value)}
+              />
+              <TextField
+                id="fullpage-ad"
+                label="Fullpage Ad"
+                variant="outlined"
+                value={fullPageAd}
+                onChange={(e) => setFullPageAd(e.target.value)}
+              />
+            </CardContent>
+            <CardContent>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={uploadClient}
+              >
+                Upload
+              </Button>
+            </CardContent>
+          </Card>
+          <Card sx={{ m: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Update Trivia Questions
+              </Typography>
+              <input type="file" onChange={handleFileChange} />
+              <Button
+                variant="contained"
+                color="success"
+                sx={{ m: 2 }}
+                onClick={uploadTrivia}
+              >
+                Upload
+              </Button>
+              <Button variant="contained" onClick={downloadTrivia}>
+                Download
+              </Button>
+            </CardContent>
+          </Card>
+          <Card sx={{ m: 2 }}>
+            <CardContent>
+              <Typography variant="h5" gutterBottom>
+                Avatars
+              </Typography>
+              <Button onClick={handleShowAvatars}>Show Current Avatars</Button>
+              {showAvatars
+                ? avatarsDb !== ''
+                  ? avatarsDb.map((avatar) => (
+                      <Card sx={{ width: 'fit-content' }}>
+                        <CardContent>
+                          <img src={avatar.url} alt="" width="60rem" />
+                          <Typography variant="subtitle2">
+                            {avatar.url}
+                          </Typography>
 
-                      <Button
-                        variant="contained"
-                        color="error"
-                        onClick={(e) => removeAvatar(e, avatar.uid)}
-                      >
-                        Delete
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              : 'No Avatars Db'
-            : ''}
-        </CardContent>
-      </Card>
-      <Card sx={{ m: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Add New Avatar
-          </Typography>
-          <TextField
-            id="url"
-            label="Url"
-            variant="outlined"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-          />
-          <TextField
-            id="uid"
-            label="Uid"
-            variant="outlined"
-            value={avatarUid}
-            onChange={(e) => setAvatarUid(e.target.value)}
-          />
-        </CardContent>
-        <CardContent>
-          <Button variant="contained" color="success" onClick={uploadAvatar}>
-            Upload
-          </Button>
-        </CardContent>
-      </Card>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            onClick={(e) => removeAvatar(e, avatar.uid)}
+                          >
+                            Delete
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))
+                  : 'No Avatars Db'
+                : ''}
+            </CardContent>
+          </Card>
+          <Card sx={{ m: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Add New Avatar
+              </Typography>
+              <TextField
+                id="url"
+                label="Url"
+                variant="outlined"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+              />
+              <TextField
+                id="uid"
+                label="Uid"
+                variant="outlined"
+                value={avatarUid}
+                onChange={(e) => setAvatarUid(e.target.value)}
+              />
+            </CardContent>
+            <CardContent>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={uploadAvatar}
+              >
+                Upload
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <div>
+          <CardContent>
+            <Typography variant="h2" gutterBottom>
+              Admin
+            </Typography>
+            <Typography>Email</Typography>
+            <TextField type="text" onChange={(e) => setEmail(e.target.value)} />
+            <Typography>Password</Typography>
+            <TextField
+              type="password"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </CardContent>
+          <CardContent>
+            <Button onClick={signIn} variant="contained">
+              Log In
+            </Button>
+          </CardContent>
+        </div>
+      )}
     </div>
   )
 }

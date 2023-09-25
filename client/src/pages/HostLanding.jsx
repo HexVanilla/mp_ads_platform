@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 
 import { SocketContext } from '../components/SocketContext'
+import ReactGA from 'react-ga4'
 
 const HostLanding = () => {
   const [roomInfo, setroomInfo] = useState('')
@@ -23,18 +24,31 @@ const HostLanding = () => {
   const [avatar, setAvatar] = useState(0)
   const [nickname, setNickname] = useState('')
   const [roomName, setRoomName] = useState('')
+  const [roomUid, setRoomUid] = useState('')
   const [showHostWarning, setShowHostWarning] = useState(false)
 
-  const socket = useContext(SocketContext)
+  const { socket } = useContext(SocketContext)
+  const { socketError } = useContext(SocketContext)
 
   const navigate = useNavigate()
   const { businessId } = useParams()
 
   useEffect(() => {
-    console.log(socket)
+    // Send pageview with a custom path
+    ReactGA.send({
+      hitType: 'pageview',
+      page: `/${businessId}`,
+      title: `${businessId}_join`,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (socketError !== null) navigate(`/serverDown`)
+  }, [socketError])
+
+  useEffect(() => {
     const ackResp = async () => {
       const response = await socket.emitWithAck('onLanding', businessId)
-      console.log('Business Exists?', response)
       setShowPage(response.res)
       if (response.data !== '') setroomInfo(response.data)
     }
@@ -42,8 +56,6 @@ const HostLanding = () => {
   }, [])
 
   const createRoom = async () => {
-    console.log(avatar, nickname, roomName, businessId)
-
     if (
       avatar !== '' &&
       nickname !== '' &&
@@ -53,18 +65,19 @@ const HostLanding = () => {
       const response = await socket.emitWithAck('create_room', {
         playerAvatar: avatar,
         roomName: roomName,
-        roomId: roomName,
         roomAds: businessId,
         playerName: nickname,
         playerId: nickname,
       })
-      sessionStorage.setItem('playerId', response.id)
+      sessionStorage.setItem('playerId', response.playerId)
+      sessionStorage.setItem('roomId', response.roomId)
+      setRoomUid(response.roomId)
     }
     setShowHostWarning(true)
   }
 
   const goToLobby = () => {
-    navigate(`/lobby/${businessId}/${roomName}`)
+    if (roomUid !== '') navigate(`/lobby/${businessId}/${roomUid}`)
   }
 
   return (
@@ -76,8 +89,8 @@ const HostLanding = () => {
         <Box sx={{ m: 2 }}>
           {' '}
           <a
-            href={`http://localhost:5173/join/${businessId}/${roomName}`}
-          >{`http://localhost:5173/join/${businessId}/${roomName}`}</a>
+            href={`http://localhost:5173/join/${businessId}/${roomUid}`}
+          >{`http://localhost:5173/join/${businessId}/${roomUid}`}</a>
         </Box>
 
         <Divider variant="middle" />
