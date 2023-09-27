@@ -2,6 +2,8 @@
 const express = require('express')
 const socket = require('socket.io')
 const appExpress = express()
+//Ports
+const { PORT, ORIGIN } = require('./config/portConfig')
 //Firebase
 const {
   database,
@@ -19,12 +21,12 @@ const {
   initializeTriviaQuestionsFromDb,
 } = require('./Loaders')
 
-const server = appExpress.listen(3001, function () {
+const server = appExpress.listen(PORT, function () {
   console.log('server running on port 3001')
 })
 
 const io = socket(server, {
-  cors: { credentials: true, origin: 'http://localhost:5173' },
+  cors: { credentials: true, origin: ORIGIN },
 })
 
 //Local Rooms
